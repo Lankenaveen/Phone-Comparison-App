@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { getListPhonesQueryKey, useListPhones } from '@workspace/api-client-react';
 import { Link, Route, Switch, useLocation, useRoute } from 'wouter';
 import { ArrowDown, ArrowDownUp, ArrowLeft, ArrowRight, Check, Heart, Menu, Moon, Plus, Search, SlidersHorizontal, Smartphone, Sparkles, Sun, X } from 'lucide-react';
-import phonesJson from '@/data/phones.json';
 import NotFound from '@/pages/not-found';
 
 type Phone = {
@@ -9,9 +10,10 @@ type Phone = {
   color: string; display: string; processor: string; ram: string; storage: string; cameras: string;
   battery: string; charging: string; os: string; '5g': boolean;
 };
-const phones = phonesJson as Phone[];
 const money = (price: number) => '$' + price.toLocaleString('en-US');
-const byId = (id: string) => phones.find((phone) => phone.id === id);
+const PhoneCatalogContext = createContext<Phone[]>([]);
+const usePhoneCatalog = () => useContext(PhoneCatalogContext);
+const queryClient = new QueryClient();
 const readList = (key: string): string[] => {
   try { const value = localStorage.getItem(key); return value ? JSON.parse(value) as string[] : []; } catch { return []; }
 };
@@ -87,7 +89,8 @@ function SectionTitle({ eyebrow, title, detail, action }: { eyebrow: string; tit
 }
 
 function HomePage({ favoriteIds, comparedIds, toggleFavorite, toggleCompare }: { favoriteIds: string[]; comparedIds: string[]; toggleFavorite: (id: string) => void; toggleCompare: (id: string) => void }) {
-  const featured = [phones[2], phones[0], phones[6], phones[5]];
+  const phones = usePhoneCatalog();
+  const featured = [phones[2], phones[0], phones[6], phones[5]].filter((phone): phone is Phone => Boolean(phone));
   return <main className="page-enter pb-24 md:pb-16">
     <section className="mx-auto max-w-[1240px] px-5 pb-12 pt-10 sm:px-8 sm:pb-20 sm:pt-16">
       <div className="relative overflow-hidden rounded-[2rem] bg-[#e9e5d7] px-6 py-10 dark:bg-[#272f2c] sm:px-12 sm:py-14 lg:px-[4.7rem]">
@@ -128,6 +131,7 @@ function HomePage({ favoriteIds, comparedIds, toggleFavorite, toggleCompare }: {
 function FilterPanel({ brand, setBrand, minPrice, setMinPrice, maxPrice, setMaxPrice, minRating, setMinRating, only5g, setOnly5g, clear }: {
   brand: string; setBrand: (v: string) => void; minPrice: string; setMinPrice: (v: string) => void; maxPrice: string; setMaxPrice: (v: string) => void; minRating: string; setMinRating: (v: string) => void; only5g: boolean; setOnly5g: (v: boolean) => void; clear: () => void;
 }) {
+  const phones = usePhoneCatalog();
   const brands = [...new Set(phones.map((phone) => phone.brand))].sort();
   const fieldClass = 'mt-2 w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary';
   return <aside className="rounded-2xl border border-card-border bg-card p-4 sm:p-5" aria-label="Catalog filters">
@@ -140,6 +144,7 @@ function FilterPanel({ brand, setBrand, minPrice, setMinPrice, maxPrice, setMaxP
 }
 
 function ExplorePage({ favoriteIds, comparedIds, toggleFavorite, toggleCompare }: { favoriteIds: string[]; comparedIds: string[]; toggleFavorite: (id: string) => void; toggleCompare: (id: string) => void }) {
+  const phones = usePhoneCatalog();
   const [query, setQuery] = useState(''); const [brand, setBrand] = useState(''); const [minPrice, setMinPrice] = useState(''); const [maxPrice, setMaxPrice] = useState(''); const [minRating, setMinRating] = useState(''); const [only5g, setOnly5g] = useState(false); const [sort, setSort] = useState('recommended');
   const filtered = useMemo(() => {
     const text = query.trim().toLowerCase();
@@ -168,6 +173,7 @@ function EmptyState({ title, detail, linkText, href }: { title: string; detail: 
 }
 
 function FavoritesPage({ favoriteIds, comparedIds, toggleFavorite, toggleCompare }: { favoriteIds: string[]; comparedIds: string[]; toggleFavorite: (id: string) => void; toggleCompare: (id: string) => void }) {
+  const phones = usePhoneCatalog();
   const saved = phones.filter((phone) => favoriteIds.includes(phone.id));
   return <main className="page-enter mx-auto max-w-[1240px] px-5 pb-24 pt-10 sm:px-8 sm:pt-14 md:pb-16"><div className="mb-8"><p className="mono mb-3 text-[10px] uppercase tracking-[.2em] text-primary">Your shortlist</p><h1 className="display-font text-4xl font-bold tracking-[-.07em] sm:text-6xl">Saved phones<span className="text-primary">.</span></h1><p className="mt-3 text-sm text-muted-foreground">{saved.length} {saved.length === 1 ? 'phone' : 'phones'} saved on this device.</p></div>
     {saved.length ? <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{saved.map((phone) => <PhoneCard key={phone.id} phone={phone} favorite compared={comparedIds.includes(phone.id)} onFavorite={() => toggleFavorite(phone.id)} onCompare={() => toggleCompare(phone.id)} />)}</div> : <EmptyState title="Nothing saved. Yet." detail="Tap the heart on a phone that catches your eye. Your shortlist stays right here on this device." linkText="Explore phones" href="/explore" />}
@@ -187,7 +193,8 @@ function specValue(phone: Phone, key: keyof Phone) {
   return String(value);
 }
 function DetailPage({ favoriteIds, comparedIds, toggleFavorite, toggleCompare }: { favoriteIds: string[]; comparedIds: string[]; toggleFavorite: (id: string) => void; toggleCompare: (id: string) => void }) {
-  const [, params] = useRoute('/phones/:id'); const phone = params ? byId(params.id) : undefined;
+  const phones = usePhoneCatalog();
+  const [, params] = useRoute('/phones/:id'); const phone = params ? phones.find((item) => item.id === params.id) : undefined;
   if (!phone) return <main className="mx-auto max-w-4xl px-5 py-20"><EmptyState title="Phone not found" detail="That device isn't in this catalog. Browse the available phones instead." linkText="Browse catalog" href="/explore" /></main>;
   const specs = specRows.slice(4);
   return <main className="page-enter mx-auto max-w-[1120px] px-5 pb-24 pt-7 sm:px-8 sm:pt-10 md:pb-16">
@@ -219,7 +226,8 @@ function DetailPage({ favoriteIds, comparedIds, toggleFavorite, toggleCompare }:
 }
 
 function ComparePage({ comparedIds, toggleCompare, setComparedIds }: { comparedIds: string[]; toggleCompare: (id: string) => void; setComparedIds: (ids: string[]) => void }) {
-  const compared = comparedIds.map(byId).filter((p): p is Phone => Boolean(p));
+  const phones = usePhoneCatalog();
+  const compared = comparedIds.map((id) => phones.find((p) => p.id === id)).filter((p): p is Phone => Boolean(p));
   const choices = phones.filter((p) => !comparedIds.includes(p.id));
   const [picker, setPicker] = useState('');
   const addPhone = (id: string) => { if (id && comparedIds.length < 4 && !comparedIds.includes(id)) setComparedIds([...comparedIds, id]); setPicker(''); };
@@ -255,32 +263,57 @@ function ComparePage({ comparedIds, toggleCompare, setComparedIds }: { comparedI
   </main>;
 }
 
-function App() {
-  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readList('phonecompare:favorites').filter((id) => Boolean(byId(id))));
-  const [comparedIds, updateComparedIds] = useState<string[]>(() => readList('phonecompare:compare').filter((id) => Boolean(byId(id))).slice(0, 4));
+function CatalogMessage({ title, detail, retry }: { title: string; detail: string; retry?: () => void }) {
+  return <main className="page-enter mx-auto flex min-h-[55vh] max-w-3xl flex-col items-center justify-center px-5 py-16 text-center">
+    <span className="mb-5 grid h-14 w-14 place-items-center rounded-2xl bg-secondary text-secondary-foreground"><Smartphone size={24} /></span>
+    <h1 className="display-font text-3xl font-bold tracking-[-.06em]">{title}</h1>
+    <p className="mt-3 max-w-lg text-sm leading-6 text-muted-foreground">{detail}</p>
+    {retry && <button type="button" onClick={retry} className="mt-6 rounded-full bg-primary px-5 py-3 text-sm font-bold text-primary-foreground">Try again</button>}
+  </main>;
+}
+
+function AppContent() {
+  const { data: catalog, isLoading, isError, refetch } = useListPhones({ query: { queryKey: getListPhonesQueryKey(), retry: 1 } });
+  const phones = catalog ?? [];
+  const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readList('phonecompare:favorites'));
+  const [comparedIds, updateComparedIds] = useState<string[]>(() => readList('phonecompare:compare').slice(0, 4));
   const [dark, setDark] = useState(() => { try { return localStorage.getItem('phonecompare:theme') === 'dark'; } catch { return false; } });
   useEffect(() => { localStorage.setItem('phonecompare:favorites', JSON.stringify(favoriteIds)); }, [favoriteIds]);
   useEffect(() => { localStorage.setItem('phonecompare:compare', JSON.stringify(comparedIds)); }, [comparedIds]);
   useEffect(() => { document.documentElement.classList.toggle('dark', dark); localStorage.setItem('phonecompare:theme', dark ? 'dark' : 'light'); }, [dark]);
+  useEffect(() => {
+    if (!catalog) return;
+    const catalogIds = new Set(catalog.map((phone) => phone.id));
+    setFavoriteIds((current) => current.filter((id) => catalogIds.has(id)));
+    updateComparedIds((current) => current.filter((id) => catalogIds.has(id)).slice(0, 4));
+  }, [catalog]);
   const toggleFavorite = (id: string) => setFavoriteIds((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   const toggleCompare = (id: string) => updateComparedIds((current) => current.includes(id) ? current.filter((item) => item !== id) : current.length < 4 ? [...current, id] : current);
   const setComparedIds = (ids: string[]) => updateComparedIds(ids.slice(0, 4));
   const shared = { favoriteIds, comparedIds, toggleFavorite, toggleCompare };
-  return <div className="noise min-h-[100dvh] bg-background text-foreground">
-    <Header favoritesCount={favoriteIds.length} compareCount={comparedIds.length} dark={dark} toggleTheme={() => setDark((value) => !value)} />
-    <Switch>
-      <Route path="/" component={() => <HomePage {...shared} />} />
-      <Route path="/explore" component={() => <ExplorePage {...shared} />} />
-      <Route path="/favorites" component={() => <FavoritesPage {...shared} />} />
-      <Route path="/compare" component={() => <ComparePage comparedIds={comparedIds} toggleCompare={toggleCompare} setComparedIds={setComparedIds} />} />
-      <Route path="/phones/:id" component={() => <DetailPage {...shared} />} />
-      <Route component={NotFound} />
-    </Switch>
-    <footer className="border-t border-border py-7"><div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-3 px-5 text-xs text-muted-foreground sm:px-8"><Link href="/" className="display-font font-bold tracking-[-.04em] text-foreground">phone<span className="text-primary">compare</span></Link><span>Specs, side by side. Your call, better informed.</span><span className="mono">LOCAL CATALOG · {phones.length} DEVICES</span></div></footer>
-    <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-background/95 px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 backdrop-blur md:hidden" aria-label="Quick navigation">
-      {[{href:'/',label:'Home',icon:Smartphone},{href:'/explore',label:'Explore',icon:Search},{href:'/compare',label:'Compare',icon:ArrowDownUp},{href:'/favorites',label:'Saved',icon:Heart}].map((item) => <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 py-1 text-[10px] font-bold text-muted-foreground" data-testid={`bottom-${item.label.toLowerCase()}`}><item.icon size={18} />{item.label}</Link>)}
-    </nav>
-  </div>;
+  return <PhoneCatalogContext.Provider value={phones}>
+    <div className="noise min-h-[100dvh] bg-background text-foreground">
+      <Header favoritesCount={favoriteIds.length} compareCount={comparedIds.length} dark={dark} toggleTheme={() => setDark((value) => !value)} />
+      {isLoading ? <CatalogMessage title="Loading the catalog…" detail="Getting the latest phone details from Supabase." /> :
+        isError ? <CatalogMessage title="Phone catalog unavailable." detail="Check that the Supabase phone table is set up, then try again." retry={() => { void refetch(); }} /> :
+          <Switch>
+            <Route path="/" component={() => <HomePage {...shared} />} />
+            <Route path="/explore" component={() => <ExplorePage {...shared} />} />
+            <Route path="/favorites" component={() => <FavoritesPage {...shared} />} />
+            <Route path="/compare" component={() => <ComparePage comparedIds={comparedIds} toggleCompare={toggleCompare} setComparedIds={setComparedIds} />} />
+            <Route path="/phones/:id" component={() => <DetailPage {...shared} />} />
+            <Route component={NotFound} />
+          </Switch>}
+      <footer className="border-t border-border py-7"><div className="mx-auto flex max-w-[1240px] flex-wrap items-center justify-between gap-3 px-5 text-xs text-muted-foreground sm:px-8"><Link href="/" className="display-font font-bold tracking-[-.04em] text-foreground">phone<span className="text-primary">compare</span></Link><span>Specs, side by side. Your call, better informed.</span><span className="mono">SUPABASE CATALOG · {phones.length} DEVICES</span></div></footer>
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-background/95 px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-2 backdrop-blur md:hidden" aria-label="Quick navigation">
+        {[{href:'/',label:'Home',icon:Smartphone},{href:'/explore',label:'Explore',icon:Search},{href:'/compare',label:'Compare',icon:ArrowDownUp},{href:'/favorites',label:'Saved',icon:Heart}].map((item) => <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 py-1 text-[10px] font-bold text-muted-foreground" data-testid={`bottom-${item.label.toLowerCase()}`}><item.icon size={18} />{item.label}</Link>)}
+      </nav>
+    </div>
+  </PhoneCatalogContext.Provider>;
+}
+
+function App() {
+  return <QueryClientProvider client={queryClient}><AppContent /></QueryClientProvider>;
 }
 
 export default App;

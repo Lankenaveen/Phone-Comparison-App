@@ -24,6 +24,69 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /phones:
+    get:
+      operationId: listPhones
+      tags: [phones]
+      summary: List phones
+      description: Returns the phone catalog from Supabase
+      responses:
+        "200":
+          description: Phone catalog
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Phone"
+        "503":
+          description: Phone catalog is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Phone catalog could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /phones/{id}:
+    get:
+      operationId: getPhone
+      tags: [phones]
+      summary: Get phone details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Phone details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Phone"
+        "404":
+          description: Phone not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Phone catalog is not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "502":
+          description: Phone catalog could not be reached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +96,47 @@ components:
           type: string
       required:
         - status
+    Phone:
+      type: object
+      required:
+        - id
+        - brand
+        - model
+        - image
+        - price
+        - rating
+        - releaseYear
+        - color
+        - display
+        - processor
+        - ram
+        - storage
+        - cameras
+        - battery
+        - charging
+        - os
+        - 5g
+      properties:
+        id: { type: string }
+        brand: { type: string }
+        model: { type: string }
+        image: { type: string }
+        price: { type: number }
+        rating: { type: number }
+        releaseYear: { type: integer }
+        color: { type: string }
+        display: { type: string }
+        processor: { type: string }
+        ram: { type: string }
+        storage: { type: string }
+        cameras: { type: string }
+        battery: { type: string }
+        charging: { type: string }
+        os: { type: string }
+        5g: { type: boolean }
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
 
