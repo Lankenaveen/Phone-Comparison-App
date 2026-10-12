@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Phone Compare"
+description = "A mobile-first phone discovery and comparison app with searchable, filterable phone specs, detailed product pages, favorites, price and rating information, side-by-side comparisons, and light/dark themes."
+version = "1.0.0"
+id = "artifacts/phone-compare"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18785
+
+[services.development]
+run = "pnpm --filter @workspace/phone-compare run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/phone-compare", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/phone-compare/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18785"
+BASE_PATH = "/"
