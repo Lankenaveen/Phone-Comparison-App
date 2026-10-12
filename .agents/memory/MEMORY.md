@@ -1,0 +1,1 @@
+- [Supabase catalog table](supabase-catalog-table.md) — Keep Phone Compare separate from the project's pre-existing `public.phones` table.
