@@ -273,7 +273,7 @@ function CatalogMessage({ title, detail, retry }: { title: string; detail: strin
 }
 
 function AppContent() {
-  const { data: catalog, isLoading, isError, refetch } = useListPhones({ query: { queryKey: getListPhonesQueryKey(), retry: 1 } });
+  const { data: catalog, isLoading, isError, refetch } = useListPhones({ query: { queryKey: getListPhonesQueryKey(), retry: false } });
   const phones = catalog ?? [];
   const [favoriteIds, setFavoriteIds] = useState<string[]>(() => readList('phonecompare:favorites'));
   const [comparedIds, updateComparedIds] = useState<string[]>(() => readList('phonecompare:compare').slice(0, 4));

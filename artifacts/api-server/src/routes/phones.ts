@@ -56,13 +56,32 @@ async function getSupabaseRows(params: URLSearchParams): Promise<Response> {
     throw new Error("Supabase catalog is not configured");
   }
 
-  return fetch(`${supabaseUrl}/rest/v1/phones?${params.toString()}`, {
+  return fetch(`${supabaseUrl}/rest/v1/phone_compare_catalog?${params.toString()}`, {
     headers: {
       apikey: anonKey,
       Authorization: `Bearer ${anonKey}`,
       Accept: "application/json",
     },
   });
+}
+
+async function upstreamErrorDetails(upstream: Response): Promise<{
+  code?: string;
+  message?: string;
+}> {
+  try {
+    const body: unknown = await upstream.json();
+    if (!body || typeof body !== "object") return {};
+    const record = body as Record<string, unknown>;
+    return {
+      ...(typeof record.code === "string" ? { code: record.code } : {}),
+      ...(typeof record.message === "string"
+        ? { message: record.message.slice(0, 300) }
+        : {}),
+    };
+  } catch {
+    return {};
+  }
 }
 
 router.get("/phones", async (req, res): Promise<void> => {
@@ -75,7 +94,7 @@ router.get("/phones", async (req, res): Promise<void> => {
     const upstream = await getSupabaseRows(params);
     if (!upstream.ok) {
       req.log.error(
-        { status: upstream.status },
+        { status: upstream.status, ...(await upstreamErrorDetails(upstream)) },
         "Supabase phone catalog request failed",
       );
       res.status(502).json({ error: "Could not load the phone catalog." });
@@ -112,7 +131,7 @@ router.get("/phones/:id", async (req, res): Promise<void> => {
     const upstream = await getSupabaseRows(params);
     if (!upstream.ok) {
       req.log.error(
-        { status: upstream.status },
+        { status: upstream.status, ...(await upstreamErrorDetails(upstream)) },
         "Supabase phone detail request failed",
       );
       res.status(502).json({ error: "Could not load phone details." });

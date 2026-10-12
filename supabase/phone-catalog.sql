@@ -1,6 +1,7 @@
--- Run once in the Supabase SQL Editor to create and seed the public catalog.
+-- Run once in the Supabase SQL Editor to create and seed Phone Compare's catalog.
+-- This dedicated table avoids changing any existing public.phones table.
 -- The app reads through its server using the anon key; only SELECT is granted.
-create table if not exists public.phones (
+create table if not exists public.phone_compare_catalog (
   id text primary key,
   brand text not null,
   model text not null,
@@ -20,18 +21,18 @@ create table if not exists public.phones (
   supports_5g boolean not null default false
 );
 
-alter table public.phones enable row level security;
+alter table public.phone_compare_catalog enable row level security;
 
-drop policy if exists "Phone catalog is publicly readable" on public.phones;
-create policy "Phone catalog is publicly readable"
-  on public.phones
+drop policy if exists "Phone Compare catalog is publicly readable" on public.phone_compare_catalog;
+create policy "Phone Compare catalog is publicly readable"
+  on public.phone_compare_catalog
   for select
   to anon, authenticated
   using (true);
 
-grant select on public.phones to anon, authenticated;
+grant select on public.phone_compare_catalog to anon, authenticated;
 
-insert into public.phones (
+insert into public.phone_compare_catalog (
   id, brand, model, image, price, rating, release_year, color, display,
   processor, ram, storage, cameras, battery, charging, os, supports_5g
 ) values
